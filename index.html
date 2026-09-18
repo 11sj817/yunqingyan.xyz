@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AX-Engine 直列四缸 | 机械美学 · 逐层拆解</title>
+<meta name="description" content="直列四缸 DOHC 发动机 3D 互动展示:滚动逐层拆解,运转动画,零件详解">
+<style>
+  :root {
+    --bg: #f5f6f8; --ink: #1a1c1f; --dim: #6b7280; --acc: #1653d8;
+    --line: rgba(0,0,0,.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: auto; }
+  body { font-family: "MiSans", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--bg); color: var(--ink); overflow-x: hidden; }
+
+  /* ===== 固定 3D 画布 ===== */
+  #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; display: block; touch-action: pan-y; }
+  #labels { position: fixed; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
+  .lbl { position: absolute; top: 0; left: 0; font-size: 12px; color: #2a3138; background: rgba(255,255,255,.82);
+    border: 1px solid rgba(22,83,216,.3); padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+    backdrop-filter: blur(4px); transition: opacity .2s; }
+  .lbl::before { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--acc); margin-right: 6px; vertical-align: 1px; }
+
+  /* ===== 滚动叙事层 ===== */
+  main { position: relative; z-index: 2; pointer-events: none; }
+  main a, main .pcard { pointer-events: auto; }
+  section { min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
+    padding: 0 8vw; position: relative; }
+  section.light-tint { }
+  .fade { opacity: 0; transform: translateY(38px); transition: opacity .8s ease, transform .8s ease; }
+  .fade.in { opacity: 1; transform: none; }
+
+  /* Hero */
+  .hero { align-items: flex-start; }
+  .kicker { font-size: 14px; letter-spacing: 6px; color: var(--acc); font-weight: 700; margin-bottom: 18px; }
+  h1.mega { font-size: clamp(44px, 9vw, 118px); font-weight: 800; letter-spacing: -2px; line-height: 1.02;
+    background: linear-gradient(120deg, #14171c 30%, #4a5568 85%); -webkit-background-clip: text;
+    background-clip: text; color: transparent; }
+  .hero-sub { margin-top: 22px; font-size: clamp(15px, 1.6vw, 20px); color: var(--dim); max-width: 560px; line-height: 1.9; }
+  .hero-cta { margin-top: 34px; display: inline-flex; align-items: center; gap: 10px; font-size: 15px;
+    color: var(--acc); font-weight: 600; text-decoration: none; pointer-events: auto;
+    border-bottom: 2px solid transparent; transition: border-color .2s; }
+  .hero-cta:hover { border-color: var(--acc); }
+  .hero-cta .arrow { animation: bob 1.6s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(5px); } }
+
+  /* 章节标题 */
+  .chap-num { font-size: 13px; letter-spacing: 4px; color: var(--acc); font-weight: 700; margin-bottom: 14px; }
+  h2.title { font-size: clamp(30px, 4.6vw, 56px); font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin-bottom: 18px; }
+  p.desc { font-size: clamp(14px, 1.4vw, 17px); color: var(--dim); line-height: 2.0; max-width: 520px; }
+  .chap-tag { position: absolute; right: 8vw; top: 50%; transform: translateY(-50%);
+    font-size: clamp(80px, 14vw, 200px); font-weight: 900; color: rgba(26,28,31,.05); pointer-events: none; user-select: none; }
+  .right { align-items: flex-end; text-align: right; }
+  .right p.desc { margin-left: auto; }
+
+  /* 参数条 */
+  .specs { display: flex; gap: clamp(20px, 5vw, 72px); margin-top: 34px; flex-wrap: wrap; }
+  .spec b { display: block; font-size: clamp(26px, 3.4vw, 44px); font-weight: 800; letter-spacing: -1px; }
+  .spec span { font-size: 13px; color: var(--dim); }
+  .spec em { font-style: normal; font-size: 15px; color: var(--acc); }
+
+  /* 零件图鉴 */
+  .chapter-parts { min-height: auto; padding: 16vh 8vw; }
+  .pcard { pointer-events: auto; background: rgba(255,255,255,.86); backdrop-filter: blur(10px);
+    border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; cursor: pointer;
+    transition: transform .25s, box-shadow .25s, border-color .25s; }
+  .pcard:hover { transform: translateY(-4px); box-shadow: 0 18px 44px rgba(22,83,216,.14); }
+  .pcard.hot { border-color: var(--acc); box-shadow: 0 0 0 2px rgba(22,83,216,.25), 0 18px 44px rgba(22,83,216,.16); }
+  .pcard h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .pcard h3 i { width: 8px; height: 8px; border-radius: 50%; background: var(--acc); flex: none; }
+  .pcard p { font-size: 13px; color: var(--dim); line-height: 1.8; }
+  .pgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px; margin-top: 40px; max-width: 1200px; }
+
+  /* 点击拾取的信息条 */
+  #pickInfo { position: fixed; left: 50%; bottom: 34px; transform: translate(-50%, 130%); z-index: 4;
+    background: rgba(20,23,28,.92); color: #eef1f5; border-radius: 16px; padding: 16px 22px;
+    max-width: min(620px, 88vw); backdrop-filter: blur(12px); transition: transform .35s cubic-bezier(.2,.8,.25,1);
+    box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+  #pickInfo.show { transform: translate(-50%, 0); }
+  #pickInfo .pi-name { font-size: 16px; font-weight: 700; color: #9cc0ff; margin-bottom: 6px; }
+  #pickInfo .pi-desc { font-size: 13px; line-height: 1.8; color: #c4cbd4; }
+
+  /* 滚动提示 */
+  .scroll-cue { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 3;
+    font-size: 12px; letter-spacing: 3px; color: var(--dim); pointer-events: none; transition: opacity .5s; }
+  .scroll-cue::after { content: ''; display: block; width: 1px; height: 34px; margin: 8px auto 0;
+    background: linear-gradient(var(--dim), transparent); animation: drip 1.8s ease-in-out infinite; }
+  @keyframes drip { 0% { transform: scaleY(0); transform-origin: top; } 55% { transform: scaleY(1); transform-origin: top; }
+    56% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+
+  footer { position: relative; z-index: 2; text-align: center; padding: 60px 20px 40px;
+    font-size: 13px; color: var(--dim); background: var(--bg); }
+  footer a { color: var(--acc); text-decoration: none; }
+
+  @media (max-width: 720px) {
+    section { padding: 0 7vw; }
+    .chap-tag { display: none; }
+    .right { align-items: flex-start; text-align: left; }
+    .right p.desc { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+<div id="labels"></div>
+
+<main>
+
+  <!-- 01 HERO -->
+  <section class="hero">
+    <div class="fade in">
+      <div class="kicker">AX-ENGINE · INLINE-4 DOHC</div>
+      <h1 class="mega">直列四缸<br>机械美学</h1>
+      <p class="hero-sub">一台发动机的内部,是一千个零件精确咬合的宇宙。<br>向下滚动,见证它逐层展开。</p>
+      <a class="hero-cta" href="#power">向下探索 <span class="arrow">↓</span></a>
+    </div>
+  </section>
+
+  <!-- 02 动力 -->
+  <section id="power">
+    <div class="fade">
+      <div class="chap-num">01 — 动力核心</div>
+      <h2 class="title">每一转,<br>都是一次精确爆发。</h2>
+      <p class="desc">活塞在气缸内以每分钟数千次往复,将燃油的化学能转化为旋转的力量。四缸按 1-3-4-2 顺序接力做功,动力输出从不断档。</p>
+      <div class="specs">
+        <div class="spec"><b>2.0<em>T</em></b><span>涡轮增压</span></div>
+        <div class="spec"><b>185<em>kW</em></b><span>最大功率</span></div>
+        <div class="spec"><b>380<em>N·m</em></b><span>峰值扭矩</span></div>
+      </div>
+    </div>
+    <div class="chap-tag">01</div>
+  </section>
+
+  <!-- 03 缸盖 -->
+  <section class="right" id="head">
+    <div class="fade">
+      <div class="chap-num">02 — 呼吸系统</div>
+      <h2 class="title">凸轮轴俯瞰,<br>精准控制每一次呼吸。</h2>
+      <p class="desc">双顶置凸轮轴以曲轴一半的转速旋转,毫秒级地开启与关闭 8 个气门。俯视视角下,你能看到进气侧与排气侧的错落节奏。</p>
+    </div>
+    <div class="chap-tag">02</div>
+  </section>
+
+  <!-- 04 拆解 -->
+  <section id="explode">
+    <div class="fade">
+      <div class="chap-num">03 — 逐层拆解</div>
+      <h2 class="title">把它拆开,<br>看清每一层。</h2>
+      <p class="desc">缸盖、缸垫、活塞、连杆、曲轴——沿着装配的逆序在空间中展开。此刻,整台发动机悬停在你眼前。</p>
+    </div>
+    <div class="chap-tag">03</div>
+  </section>
+
+  <!-- 05 零件图鉴 -->
+  <section class="chapter-parts" id="parts">
+    <div class="fade">
+      <div class="chap-num">04 — 零件图鉴</div>
+      <h2 class="title">认识每一个名字。</h2>
+      <p class="desc">悬停或点击卡片,场景中的对应零件会被点亮;也可以直接点击 3D 零件本身。</p>
+      <div class="pgrid">
+        <div class="pcard" data-part="piston"><h3><i></i>活塞</h3><p>承受燃烧压力,在气缸内往复运动,顶面即燃烧室底面。</p></div>
+        <div class="pcard" data-part="rod"><h3><i></i>连杆</h3><p>连接活塞与曲轴,把往复运动变成旋转运动。</p></div>
+        <div class="pcard" data-part="crank"><h3><i></i>曲轴</h3><p>发动机脊梁,汇聚四缸力量输出扭矩,尾端连着飞轮。</p></div>
+        <div class="pcard" data-part="head"><h3><i></i>缸盖</h3><p>内置燃烧室与进排气道,双凸轮轴直接压动气门。</p></div>
+        <div class="pcard" data-part="cam"><h3><i></i>凸轮轴</h3><p>半转速旋转,桃尖按时下压气门,控制换气正时。</p></div>
+        <div class="pcard" data-part="valve"><h3><i></i>气门</h3><p>进气门吸入新鲜空气,排气门排出废气,弹簧保证回座。</p></div>
+        <div class="pcard" data-part="block"><h3><i></i>缸体</h3><p>铝合金骨架,四个气缸孔是活塞的运动轨道。</p></div>
+        <div class="pcard" data-part="gasket"><h3><i></i>缸垫</h3><p>缸体与缸盖之间的多层金属密封垫,封住高温燃气与油水道。</p></div>
+        <div class="pcard" data-part="intake"><h3><i></i>进气歧管</h3><p>稳压腔把空气均分给四个气缸,气道长度调校过扭矩特性。</p></div>
+        <div class="pcard" data-part="exhaust"><h3><i></i>排气歧管</h3><p>汇集四缸废气送往三元催化器,工作温度超过 800°C。</p></div>
+        <div class="pcard" data-part="plug"><h3><i></i>火花塞</h3><p>压缩行程终了释放电火花,点燃混合气推动活塞做功。</p></div>
+        <div class="pcard" data-part="pan"><h3><i></i>油底壳</h3><p>底部机油储存池,曲柄旋转溅起机油润滑缸壁。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 尾声 -->
+  <section class="right" id="finale">
+    <div class="fade">
+      <div class="chap-num">05 — 合体</div>
+      <h2 class="title">一千个零件,<br>一个心跳。</h2>
+      <p class="desc">零件归位,曲轴重新旋转。机械的浪漫,在于把无数次微小的爆发展成绵延不断的动力。</p>
+    </div>
+    <div class="chap-tag">05</div>
+  </section>
+
+</main>
+
+<div id="pickInfo">
+  <div class="pi-name">—</div>
+  <div class="pi-desc">—</div>
+</div>
+<div class="scroll-cue" id="scrollCue">SCROLL</div>
+
+<footer>
+  AX-Engine 互动展示 · 基于 Three.js 程序化建模 · 托管于 <a href="https://yunqingyan.xyz">yunqingyan.xyz</a>
+</footer>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+<script type="module" src="js/main.js"></script>
+<script>
+  // 滚动提示淡出
+  addEventListener('scroll', () => {
+    document.getElementById('scrollCue').style.opacity =
+      scrollY > 80 ? '0' : '1';
+  }, { passive: true });
+  // hero-cta 平滑滚动
+  document.querySelector('.hero-cta').addEventListener('click', e => {
+    e.preventDefault();
+    document.getElementById('power').scrollIntoView({ behavior: 'smooth' });
+  });
+</script>
+
+</body>
+</html>
