@@ -15,7 +15,9 @@
     background: var(--bg); color: var(--ink); overflow-x: hidden; }
 
   /* ===== 固定 3D 画布 ===== */
-  #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; display: block; touch-action: pan-y; }
+  #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; display: block;
+    touch-action: pan-y; cursor: grab; }
+  #scene.grabbing { cursor: grabbing; }
   #labels { position: fixed; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
   .lbl { position: absolute; top: 0; left: 0; font-size: 12px; color: #2a3138; background: rgba(255,255,255,.85);
     border: 1px solid rgba(22,83,216,.3); padding: 3px 10px; border-radius: 20px; white-space: nowrap;
@@ -59,7 +61,10 @@
   .spec em { font-style: normal; font-size: 14px; color: var(--acc); }
 
   /* 零件图鉴 */
-  .chapter-parts { min-height: auto; padding: 14vh 6vw; }
+  .chapter-parts { min-height: auto; padding: 12vh 6vw; gap: 26px; }
+  .chapter-parts .head-card { margin-bottom: 4px; }
+  .head-card h2.title { font-size: clamp(24px, 3.2vw, 38px); margin-bottom: 10px; }
+  .head-card p.desc { margin: 0; }
   .pcard { pointer-events: auto; background: rgba(255,255,255,.9); backdrop-filter: blur(10px);
     border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; cursor: pointer;
     transition: transform .25s, box-shadow .25s, border-color .25s; }
@@ -69,7 +74,7 @@
   .pcard h3 i { width: 8px; height: 8px; border-radius: 50%; background: var(--acc); flex: none; }
   .pcard p { font-size: 13px; color: var(--dim); line-height: 1.8; }
   .pgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 16px; margin-top: 36px; max-width: 1240px; }
+    gap: 16px; margin-top: 4px; max-width: 1240px; }
 
   /* 点击拾取的信息条 */
   #pickInfo { position: fixed; left: 50%; bottom: 34px; transform: translate(-50%, 130%); z-index: 4;
@@ -166,13 +171,14 @@
     </div>
   </section>
 
-  <!-- 05 零件图鉴 -->
+  <!-- 05 零件图鉴(标题也进玻璃卡片,整页无裸文字) -->
   <section class="chapter-parts" id="parts">
-    <div class="fade">
+    <div class="glass fade head-card">
       <div class="chap-num">04 — 零件图鉴</div>
       <h2 class="title">认识每一个名字。</h2>
-      <p class="desc">悬停或点击卡片,场景中的对应零件会被点亮;也可以直接点击 3D 零件本身。</p>
-      <div class="pgrid">
+      <p class="desc">悬停或点击卡片,场景中的对应零件会被点亮;也可以直接拖拽旋转、点击 3D 零件本身。</p>
+    </div>
+    <div class="pgrid fade">
         <div class="pcard" data-part="piston"><h3><i></i>活塞</h3><p>承受燃烧压力,在气缸内往复运动,顶面即燃烧室底面。</p></div>
         <div class="pcard" data-part="rod"><h3><i></i>连杆</h3><p>工字形截面的传力杆件,把活塞的往复运动变成旋转运动。</p></div>
         <div class="pcard" data-part="crank"><h3><i></i>曲轴</h3><p>发动机脊梁,带扇形配重块,汇聚四缸力量输出扭矩。</p></div>
@@ -188,7 +194,6 @@
       </div>
     </div>
   </section>
-
   <!-- 06 尾声 -->
   <section class="right" id="finale">
     <div class="glass fade">
