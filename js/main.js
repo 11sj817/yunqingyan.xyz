@@ -1,6 +1,6 @@
 // ============================================================
 // 产品官网式交互:滚动驱动运镜 + 爆炸拆解编排
-// 相机按关键帧插值,用户拖拽可临时偏航,滚动时自动回正
+// 相机按关键帧插值,支持每章侧向偏移(避免与文字重叠)
 // ============================================================
 import * as THREE from 'three';
 import { buildEngine, PART_INFO } from './engine.js';
@@ -35,7 +35,7 @@ const fill = new THREE.DirectionalLight(0xffd9a0, 0.5);
 fill.position.set(3, 2, -9);
 scene.add(fill);
 
-// 接触阴影地面(透明背景用 ShadowMaterial)
+// 接触阴影地面
 const ground = new THREE.Mesh(
   new THREE.CircleGeometry(15, 48),
   new THREE.ShadowMaterial({ opacity: 0.32 })
@@ -50,15 +50,15 @@ const eng = buildEngine();
 scene.add(eng.root);
 
 // ---------- 滚动编排关键帧 ----------
-// t: 全页滚动进度 0-1 | pos/tgt: 相机 | explode: 拆解 | spin: 自动旋转速度 | run: 运转
+// side: 相机水平侧偏(正=模型移向屏幕右侧,让出左侧文字区)
 const KEY = [
-  { t: 0.00, pos: [7.2, 4.4, 8.2], tgt: [0, 1.2, 0], explode: 0,   spin: 0.35, run: 1 },
-  { t: 0.15, pos: [0.6, 2.0, 10.2], tgt: [0, 1.3, 0], explode: 0,  spin: 0,    run: 1 },
-  { t: 0.32, pos: [5.2, 8.8, 4.6], tgt: [0, 2.3, 0], explode: 0,  spin: 0,    run: 1 },
-  { t: 0.50, pos: [8.2, 3.4, 8.0], tgt: [0, 1.7, 0], explode: 0.6, spin: 0,    run: 0.12 },
-  { t: 0.68, pos: [-8.0, 5.0, 7.6], tgt: [0, 2.6, 0], explode: 1,  spin: 0.5,  run: 0 },
-  { t: 0.85, pos: [5.8, 2.8, 8.8], tgt: [0, 1.4, 0], explode: 0.22, spin: 0,   run: 0.7 },
-  { t: 1.00, pos: [9.5, 3.6, 10.0], tgt: [0, 0.8, 0], explode: 0,  spin: 0.25, run: 1 },
+  { t: 0.00, pos: [7.6, 4.2, 8.6],  tgt: [0, 1.2, 0], side: 0.0,  explode: 0,    spin: 0.22, run: 1 },
+  { t: 0.15, pos: [0.6, 2.1, 10.6], tgt: [0, 1.3, 0], side: -1.4, explode: 0,    spin: 0,    run: 1 },
+  { t: 0.32, pos: [4.4, 9.2, 4.2],  tgt: [0, 2.3, 0], side: 1.5,  explode: 0,    spin: 0,    run: 0.55 },
+  { t: 0.50, pos: [7.8, 3.2, 8.4],  tgt: [0, 1.7, 0], side: -1.6, explode: 0.62, spin: 0,    run: 0.12 },
+  { t: 0.68, pos: [-8.4, 4.8, 7.8], tgt: [0, 2.4, 0], side: 1.6,  explode: 1,    spin: 0.25, run: 0 },
+  { t: 0.85, pos: [6.0, 2.9, 9.0],  tgt: [0, 1.4, 0], side: -1.4, explode: 0.2,  spin: 0,    run: 0.7 },
+  { t: 1.00, pos: [9.8, 3.6, 10.2], tgt: [0, 0.8, 0], side: 0.0,  explode: 0,    spin: 0.18, run: 1 },
 ];
 const lerp = (a, b, k) => a + (b - a) * k;
 const smooth = k => k * k * (3 - 2 * k);
@@ -71,6 +71,7 @@ function sampleKeys(p) {
   return {
     pos: A.pos.map((v, j) => lerp(v, B.pos[j], k)),
     tgt: A.tgt.map((v, j) => lerp(v, B.tgt[j], k)),
+    side: lerp(A.side, B.side, k),
     explode: lerp(A.explode, B.explode, k),
     spin: lerp(A.spin, B.spin, k),
     run: lerp(A.run, B.run, k),
@@ -91,7 +92,7 @@ let yawOff = 0, yawTarget = 0, dragging = false, lastX = 0;
 canvas.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; });
 addEventListener('pointermove', e => {
   if (!dragging) return;
-  yawTarget += (e.clientX - lastX) * 0.006;
+  yawTarget += (e.clientX - lastX) * 0.005;
   lastX = e.clientX;
 });
 addEventListener('pointerup', () => dragging = false);
@@ -147,7 +148,7 @@ const io = new IntersectionObserver(es => {
 }, { threshold: 0.18 });
 document.querySelectorAll('.fade').forEach(el => io.observe(el));
 
-// ---------- 3D 标签(拆解章节自动浮现) ----------
+// ---------- 3D 标签 ----------
 const labelLayer = document.getElementById('labels');
 const labels = eng.anchors.map(a => {
   const el = document.createElement('div');
@@ -188,37 +189,37 @@ function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.05);
 
-  scrollPsmooth += (scrollP - scrollPsmooth) * Math.min(1, dt * 3.5);
+  // 滚动/拆解:重阻尼平滑(慢而稳)
+  scrollPsmooth += (scrollP - scrollPsmooth) * Math.min(1, dt * 2.2);
   const K = sampleKeys(scrollPsmooth);
 
-  // 运转(平滑)
-  omega += (K.run * 900 - omega) * Math.min(1, dt * 1.8);
-  theta += omega * dt * 0.35;
+  // 运转:目标视觉转速 720rpm,平滑跟随
+  omega += (K.run * 720 - omega) * Math.min(1, dt * 1.2);
+  theta += omega * dt * 0.16;   // 0.16 系数=视觉慢转
 
-  // 拆解(平滑)
-  explodeNow += (K.explode - explodeNow) * Math.min(1, dt * 4);
+  explodeNow += (K.explode - explodeNow) * Math.min(1, dt * 2.4);
   eng.update(theta, explodeNow);
 
-  // 相机:关键帧位置 + 自动旋转 + 用户偏航
-  yawOff += (yawTarget - yawOff) * Math.min(1, dt * 6);
-  if (!dragging) yawTarget *= Math.max(0, 1 - dt * 0.8); // 滚动回正
-  const ang = Math.atan2(K.pos[2], K.pos[0]) + K.spin * clock.elapsedTime * 0 + (scrollPsmooth < 0.98 ? K.spin * clock.elapsedTime * 0 : 0);
-  const spinAng = K.spin ? clock.elapsedTime * K.spin * 0.15 : 0;
+  // 相机:关键帧 + 侧偏 + 自旋 + 用户偏航,全部重阻尼
+  yawOff += (yawTarget - yawOff) * Math.min(1, dt * 4);
+  if (!dragging) yawTarget *= Math.max(0, 1 - dt * 0.6);
+  const spinAng = K.spin ? clock.elapsedTime * K.spin * 0.06 : 0;
   const baseAng = Math.atan2(K.pos[2], K.pos[0]);
   const radius = Math.hypot(K.pos[0], K.pos[2]);
   const totalAng = baseAng + spinAng + yawOff;
+  // 侧偏:沿相机右向量平移注视点 → 模型反向移动
+  const rx = Math.cos(totalAng), rz = -Math.sin(totalAng);
   camera.position.set(
     Math.cos(totalAng) * radius,
     K.pos[1],
     Math.sin(totalAng) * radius
   );
-  camera.lookAt(K.tgt[0], K.tgt[1], K.tgt[2]);
+  camera.lookAt(K.tgt[0] - rx * K.side, K.tgt[1], K.tgt[2] + rz * K.side);
 
-  // 标签透明度:拆解峰值区段
   const labelOp = Math.max(0, 1 - Math.abs(scrollPsmooth - 0.66) / 0.12);
   updateLabels(labelOp);
 
-  if (rpmNum) rpmNum.textContent = Math.round(omega / 900 * 1800);
+  if (rpmNum) rpmNum.textContent = Math.round(omega / 720 * 720);
   renderer.render(scene, camera);
 }
 tick();
